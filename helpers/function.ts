@@ -65,7 +65,7 @@ export async function printThreeDifferentAssessmentIds(page: Page) {
   // Wait for at least one assessmentID div to appear
   await logsPage.assessmentIdDivs.first().waitFor({ state: 'attached' });
 
-  // --- NEW: Scroll last div into view to force rendering of all items ---
+  // Scroll to the last div into view to force rendering of all divs
   const divs = await logsPage.assessmentIdDivs.all();
   if (divs.length === 0) {
     console.log('No divs with test-data-id="assessmentID" were found.');
@@ -74,7 +74,7 @@ export async function printThreeDifferentAssessmentIds(page: Page) {
   await divs[divs.length - 1].scrollIntoViewIfNeeded();
   await page.waitForTimeout(800); // Wait for lazy loading/rendering
 
-  // Re-query all divs after scrolling (in case more loaded)
+  // All the divs again after the scrolling 
   const allDivs = await logsPage.assessmentIdDivs.all();
   console.log(`Found ${allDivs.length} matching divs after scrolling.`);
 
