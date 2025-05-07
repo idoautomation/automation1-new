@@ -34,7 +34,7 @@ export async function filterAdvancedScenarios(page: Page) {
 
   console.log('Opening filter panel...');
   await activityLogs.filterBarButton.click({ force: true });
-  await activityLogs.lastWeekButton.waitFor();
+  //await activityLogs.lastWeekButton.waitFor();
   //await activityLogs.lastWeekButton.click({ force: true });
 
   console.log('Waiting for type section to be visible...');
@@ -58,67 +58,57 @@ export async function filterAdvancedScenarios(page: Page) {
 }
 
 
-
 export async function printThreeDifferentAssessmentIds(page: Page) {
   const logsPage = new LogsPage(page);
   console.log('Looking for assessment ID elements...');
 
-  // Set to store unique IDs
+  // Wait for at least one assessmentID div to appear
+  await logsPage.assessmentIdDivs.first().waitFor({ state: 'attached' });
+
+  // --- NEW: Scroll last div into view to force rendering of all items ---
+  const divs = await logsPage.assessmentIdDivs.all();
+  if (divs.length === 0) {
+    console.log('No divs with test-data-id="assessmentID" were found.');
+    throw new Error('No assessment ID divs found.');
+  }
+  await divs[divs.length - 1].scrollIntoViewIfNeeded();
+  await page.waitForTimeout(800); // Wait for lazy loading/rendering
+
+  // Re-query all divs after scrolling (in case more loaded)
+  const allDivs = await logsPage.assessmentIdDivs.all();
+  console.log(`Found ${allDivs.length} matching divs after scrolling.`);
+
+  // Searching for different Ids
   const differentIds = new Set<string>();
 
-  // Iterate over the pages
-  for (let currentPage = 1; differentIds.size < 3; currentPage++) {
-    console.log(`Looking for assessment IDs on page ${currentPage}...`);
+  for (let i = 0; i < allDivs.length && differentIds.size < 3; i++) {
+    try {
+      const span = allDivs[i].locator('span span');
+      const idText = await span.textContent();
 
-    // Wait for the divs to be attached to the DOM
-    await logsPage.assessmentIdDivs.first().waitFor({ state: 'attached' });
-
-    // Get all divs with assessment IDs on the current page
-    const divs = await logsPage.assessmentIdDivs.all();
-    console.log(`Found ${divs.length} matching divs on page ${currentPage}.`);
-
-    // Iterate over the divs to collect IDs
-    for (let i = 0; i < divs.length && differentIds.size < 3; i++) {
-      try {
-        const span = divs[i].locator('span span');
-        const idText = await span.textContent();
-
-        if (idText) {
-          const id = idText.trim();
-          if (!differentIds.has(id)) {
-            differentIds.add(id);
-            console.log(`Found ID ${differentIds.size}: ${id}`);
-          }
+      if (idText) {
+        const id = idText.trim();
+        if (!differentIds.has(id)) {
+          differentIds.add(id);
+          console.log(`Found ID ${differentIds.size}: ${id}`);
         }
-      } catch (error) {
-        console.warn(`Failed to process div ${i + 1}:`, error);
       }
-    }
-
-    // If we haven’t found enough IDs, click the next page button
-    if (differentIds.size < 3) {
-      const nextPageButton = logsPage.nextPageButton;
-
-      // Check if the "Next" button is visible and enabled
-      if (await nextPageButton.isVisible() && await nextPageButton.isEnabled()) {
-        console.log('Clicking next page button...');
-        await nextPageButton.click();
-        await page.waitForTimeout(2000); // Wait for the next page to load
-      } else {
-        console.log('Next page button is not visible or not enabled. Stopping.');
-        break; // Stop if no next page or it's not enabled
-      }
+    } catch (error) {
+      console.warn(`Failed to process div ${i + 1}:`, error);
     }
   }
 
-  // Ensure we’ve found exactly 3 unique IDs, otherwise throw an error
+  // Assertion that we found exactly 3 different IDs
   if (differentIds.size !== 3) {
     throw new Error(`Expected 3 different assessment IDs, but found ${differentIds.size}.`);
   }
 
-  // Printing the three different IDs
+  // Printing the different Ids
   console.log('Three Different assessment IDs:');
   Array.from(differentIds).forEach((id, index) => {
     console.log(`${index + 1}. ${id}`);
   });
 }
+
+
+
